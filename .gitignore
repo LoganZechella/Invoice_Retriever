@@ -1,4 +1,6 @@
 credentials.json
+token.json
 *.pyc
 .env
 venv
+invoices/

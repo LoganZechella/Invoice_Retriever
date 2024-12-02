@@ -8,6 +8,10 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Configure logging
 logging.basicConfig(
@@ -27,12 +31,38 @@ DRIVE_FOLDER_ID = os.getenv('DRIVE_FOLDER_ID')
 
 def get_google_service(service_name, version, creds=None):
     """Initialize and return a Google API service."""
+    creds = None
+    # Token file to store credentials after initial authentication
+    token_file = 'token.json'
+    
+    # Check if we have valid credentials saved
+    if os.path.exists(token_file):
+        try:
+            creds = Credentials.from_authorized_user_file(token_file, SCOPES)
+        except Exception as e:
+            logger.error(f"Error loading credentials: {str(e)}")
+    
+    # If no valid credentials, let's get new ones
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
-            flow = InstalledAppFlow.from_client_secrets_file('credentials.json', SCOPES)
-            creds = flow.run_local_server(port=0)
+            try:
+                creds.refresh(Request())
+            except Exception as e:
+                logger.error(f"Error refreshing credentials: {str(e)}")
+                creds = None
+        
+        if not creds:
+            try:
+                flow = InstalledAppFlow.from_client_secrets_file('credentials.json', SCOPES)
+                creds = flow.run_local_server(port=0)
+                
+                # Save credentials for future use
+                with open(token_file, 'w') as token:
+                    token.write(creds.to_json())
+                logger.info("New credentials saved successfully")
+            except Exception as e:
+                logger.error(f"Error in authentication flow: {str(e)}")
+                raise
     
     return build(service_name, version, credentials=creds)
 

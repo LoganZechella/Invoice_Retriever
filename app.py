@@ -37,13 +37,31 @@ def get_google_service(service_name, version, creds=None):
     return build(service_name, version, credentials=creds)
 
 def process_emails():
-    """Search for and process emails with invoice attachments."""
+    """Search for and process emails with invoice attachments from specific senders."""
     try:
         gmail_service = get_google_service('gmail', 'v1')
         drive_service = get_google_service('drive', 'v3')
         
-        # Search for emails with invoices
-        query = "subject:invoice OR subject:bill has:attachment"
+        # Search query for specific senders and invoice-related subjects
+        # Adding 'newer:1d' to only get emails from the last day
+        query = """
+            newer:1d
+            AND
+            (from:billing@render.com OR 
+             from:support@netlify.com OR
+             from:billing@netlify.com OR
+             from:payments-noreply@google.com OR
+             from:billing@webflow.com OR
+             from:billing@box.com OR
+             from:billing@typeform.com OR
+             from:no-reply@business.amazon.com OR
+             from:*@anthemwelderssupply.com)
+            AND 
+            (subject:invoice OR subject:receipt OR subject:bill OR subject:payment)
+            AND 
+            has:attachment
+        """.replace('\n', ' ').strip()
+        
         results = gmail_service.users().messages().list(
             userId='me', q=query
         ).execute()
